@@ -1,0 +1,149 @@
+<!doctype html>
+<html><head>
+<title>accel client socket exploration</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, minimum-scale=1, initial-scale=1, user-scalable=yes">
+<style>
+html, body{background-color:#cf0;height:100%;width:100%;min-width:320px; -ms-text-size-adjust: 100%;-webkit-text-size-adjust: 100%;-webkit-font-smoothing: antialiased;-moz-osx-font-smoothing: grayscale;-webkit-tap-highlight-color: transparent;}
+body {margin:0;padding:1em;font-family:system, system-ui, -apple-system, ".SFNSText-Regular", "San Francisco", "Oxygen", "Ubuntu", "Roboto", "Segoe UI", "Helvetica Neue", "Lucida Grande", sans-serif; line-height: 1.3; background-color:#fff;box-sizing:border-box;}
+pre, code{font-family:"SF Mono", "Monaco", "Inconsolata", "Fira Mono", "Droid Sans Mono", "Source Code Pro", "Lucida Console", monospace;}
+iframe{border: 1;}
+</style>
+</head>
+<body>
+<script type=module>
+/*
+plot a line along a x,y graph
+
+total x points = length of incoming set, or map this incoming over a preset range
+total y points = [0,100]
+
+TODO have backend provide ranges, way to update;
+
+*/
+import { LitElement, html, svg, property, customElement } from "https://unpkg.com/lit-element@2.3.1/lit-element.js?module"; //"./lib/lit-element/lit-element.js";
+class DataThing extends LitElement {
+	static get properties() {
+		return {
+			host: { type: String }
+			,socket: { type: Object }
+			,data: {type:Array}
+			,status: {type:String}
+			,message: {type:String}
+			,width: {type: Number}
+			,height: {type: Number}
+		};
+	}
+	constructor() {
+		super();
+		this.host = "ws://localhost:8000/socket";
+		this.status = "disconnected";
+		this.decoder = new TextDecoder('utf-8');
+		this.width = 500;
+		this.height = 300;
+		this.data = [];
+		this.wsEvent = this.wsEvent.bind(this);
+		this.connect();
+	}
+	wsEvent(e){
+		switch(e.type){
+		case 'close':
+			this.status = "disconnected";
+		break;
+		case 'open':
+			this.status = "connected";
+		break;
+		case 'message':
+			const data = e.data;
+			switch(typeof data){
+			case 'string':
+				this.message = data;
+			break;
+			case 'object':
+				this.data = Array.from(new Uint8Array(data));
+				this.message = this.data.join(', ');
+			break;
+			}
+		break;
+		case 'error':
+			this.message = e;
+			console.error(e);
+		break;
+		default:
+			console.warn(e.type, e);
+		}
+	}
+	connect(){
+		if(this.socket){
+			this.socket.close();
+		}
+		const ws = new WebSocket(this.host);
+		this.socket = ws;
+		ws.binaryType = 'arraybuffer';
+		ws.addEventListener('message', this.wsEvent);
+		ws.addEventListener('open', this.wsEvent);
+		ws.addEventListener('close', this.wsEvent);
+		ws.addEventListener('error', this.wsEvent);
+	}
+	submit(e=new CustomEvent('clicker')){
+		e.preventDefault();
+		if(this.socket && this.socket.readyState === 1){
+			this.socket.close();
+		}else{
+			this.connect();
+		}
+	}
+	render() {
+		return html`
+<style>
+svg.chart{transform-style:preserve-3d;/*transform:rotate3d(1, 1, 1, 25deg);*/}
+.axis{stroke-width:1px;fill:none;stroke:#111;transition:transform:1s;}
+/* horizontal movement */
+#x-axis{stroke:red;}
+/* vertical movement */
+#y-axis{stroke:green;}
+/* depth to/from movement */
+#z-axis{stroke:blue;}
+</style>
+<form @submit="${ this.submit }">
+<input placeholder="ws://localhost:8000/socket" value="${this.host}">
+<button>${ this.status === "connected" ? "disconnect":"connect" }</button>
+</form>
+<p>status: ${ this.status } ${ (this.socket && (this.socket.readyState === 1) && '+') || '-' }</p>
+<svg viewBox="0 0 ${this.width} ${this.height}" class="chart">
+<g id="x-axis" class="axis x-axis" title="x-axis">
+  <polyline points="${
+this.data.map((d, i, data)=>{
+	// x,y => x% * width, y% * height
+	return `${(i/data.length * this.width).toFixed(2)},${(d/100 * this.height).toFixed(2)}`;
+}).reverse().join(' ')
+	}"/>
+</g>
+<g id="y-axis" class="axis y-axis" title="y-axis">
+  <polyline points="${
+this.data.map((d, i, data)=>{
+	// x,y => x% * width, y% * height
+	return `${(i/data.length * this.width - 10).toFixed(2)},${(d/100 * this.height + 50).toFixed(2)}`;
+}).reverse().join(' ')
+	}"/>
+</g>
+<g id="z-axis" class="axis z-axis" title="z-axis">
+  <polyline points="${
+this.data.map((d, i, data)=>{
+	// x,y => x% * width, y% * height
+	return `${(i/data.length * this.width + 10).toFixed(2)},${(d/100 * this.height - 50).toFixed(2)}`;
+}).join(' ')
+	}"/>
+</g>
+</svg>
+<slot>...</slot>
+
+`;
+	}
+}
+
+customElements.define('data-thing', DataThing);
+</script>
+<data-thing></data-thing>
+</body>
+</html>
