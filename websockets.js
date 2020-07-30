@@ -1,4 +1,4 @@
-import { isWebSocketCloseEvent, acceptable } from "https://deno.land/std@0.61.0/ws/mod.ts";
+import { acceptable } from "https://deno.land/std@0.61.0/ws/mod.ts";
 
 const users = new Set();
 function broadcastEach(user){
@@ -13,10 +13,12 @@ async function pipes(socket){
 	try{
 		users.add(socket);
 		broadcast(`hello! ${ socket.conn.rid }`);
+		// TODO ? pings and pongs
 		for await (const evt of socket){
-			if(isWebSocketCloseEvent(evt)){
+			if(socket.isClosed){
 				users.delete(socket);
 				broadcast(`bye! ${ socket.conn.rid }`);
+				break;
 			}else{
 				broadcast(evt);
 			}
@@ -27,6 +29,8 @@ async function pipes(socket){
 }
 
 export const websockets = async (context, next) => {
+	context.response.status = 204;
+
 	if( !acceptable(context.request.serverRequest) ){
 		context.response.status = 400;
 		throw new Error(`not upgradable to WebSocket`);
