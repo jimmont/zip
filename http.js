@@ -48,6 +48,29 @@ APIv0.route(router, cors);
 
 router.get('/socket', websockets);
 
+// see https://oakserver.github.io/oak/sse.html
+router.get('/events', (context) => {
+//	const headers = new Headers([['content-type', 'text/event-stream']]);
+	const target = context.sendEvents();//{ headers });
+	/*
+	target.addEventListener('close', e => {
+		// cleanup
+	});
+
+	on client:
+	const source = new EventSource("/events");
+	source.addEventListener("ping", (evt) => {
+		console.log(evt.data); // should log a string of the pre-parsed JSON above/below
+	});
+	// here/server:
+	const event = new ServerSentEvent("ping", { hello: "world" });
+	target.dispatchEvent(event);
+
+	*/
+	target.dispatchMessage({text: 'messages'});
+	// or close the connection when desired: await target.close();
+});
+
 const mimetypes = {
 	css: 'text/css; charset=utf-8'
 	,ico: 'image/vnd.microsoft.icon'

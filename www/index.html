@@ -21,7 +21,7 @@ total y points = [0,100]
 TODO have backend provide ranges, way to update;
 
 */
-import { LitElement, html, svg, property, customElement } from "https://unpkg.com/lit-element@2.3.1/lit-element.js?module"; //"./lib/lit-element/lit-element.js";
+import { LitElement, html, svg, property, customElement } from "./lib/litelement.js";
 class DataThing extends LitElement {
 	static get properties() {
 		return {
@@ -143,6 +143,12 @@ this.data.map((d, i, data)=>{
 }
 
 customElements.define('data-thing', DataThing);
+</script>
+<script>
+const source = new EventSource("/events");
+source.addEventListener("message", (e) => {
+  console.log(e.type, e); // should log a string of the pre-parsed JSON above/below
+});
 </script>
 <data-thing></data-thing>
 </body>
